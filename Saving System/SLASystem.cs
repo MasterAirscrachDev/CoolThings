@@ -1,4 +1,4 @@
-//SLA System V3
+//SLA System V3.1
 using System;
 using System.IO;
 using System.Collections.Generic;
@@ -16,33 +16,29 @@ public class SaveFile { //the editable class
         if(IntList.Count - 1 < index){
             for(int i = IntList.Count; i <= index; i++){ IntList.Add(0); IntNames.Add(""); }
         }
-        if (permission == 0 && IntNames[index] == null) { IntList[index] = value; IntNames[index] = name; }
-        else if (permission == 1 && IntNames[index] == name) { IntList[index] = value; }
-        else if (permission == 2) { IntList[index] = value; IntNames[index] = name; }
+        if (permission == 0 && IntNames[index] == name) { IntList[index] = value; }
+        else if (permission == 1) { IntList[index] = value; IntNames[index] = name; }
     }
     public void SetFloat(int index, float value, string name, int permission = 0) {
         if(FloatList.Count - 1 < index){
             for(int i = FloatList.Count; i <= index; i++){ FloatList.Add(0); FloatNames.Add(""); }
         }
-        if (permission == 0 && FloatNames[index] == null) { FloatList[index] = value; FloatNames[index] = name; }
-        else if (permission == 1 && FloatNames[index] == name) { FloatList[index] = value; }
-        else if (permission == 2) { FloatList[index] = value; FloatNames[index] = name; }
+        if (permission == 0 && FloatNames[index] == name) { FloatList[index] = value; }
+        else if (permission == 1) { FloatList[index] = value; FloatNames[index] = name; }
     }
     public void SetBool(int index, bool value, string name, int permission = 0) {
         if(BoolList.Count - 1 < index){
             for(int i = BoolList.Count; i <= index; i++){ BoolList.Add(false); BoolNames.Add(""); }
         }
-        if (permission == 0 && BoolNames[index] == null) { BoolList[index] = value; BoolNames[index] = name; }
-        else if (permission == 1 && BoolNames[index] == name) { BoolList[index] = value; }
-        else if (permission == 2) { BoolList[index] = value; BoolNames[index] = name; }
+        if (permission == 0 && BoolNames[index] == name) { BoolList[index] = value; }
+        else if (permission == 1) { BoolList[index] = value; BoolNames[index] = name; }
     }
     public void SetString(int index, string value, string name, int permission = 0) {
         if(StringList.Count - 1 < index){
             for(int i = StringList.Count; i <= index; i++){ StringList.Add(""); StringNames.Add(""); }
         }
-        if (permission == 0 && StringNames[index] == null) { StringList[index] = value; StringNames[index] = name; }
-        else if (permission == 1 && StringNames[index] == name) { StringList[index] = value; }
-        else if (permission == 2) { StringList[index] = value; StringNames[index] = name; }
+        if (permission == 0 && StringNames[index] == name) { StringList[index] = value; }
+        else if (permission == 1) { StringList[index] = value; StringNames[index] = name; }
     }
     //configure class
     public void Setup(bool debugfile, string projectname, string studioname) { debug = debugfile; projectName = projectname; studioName = studioname; }
