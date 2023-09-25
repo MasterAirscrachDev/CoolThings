@@ -3,8 +3,9 @@
 Old
 Uses Json
 Not user Friendly
+Currently The backbone of LunaDev's UwUBot (Discord Bot)
 ##FileSuper
 New
 Custom Data Storage
-User friendly  
-Currently The backbone of LunaDev's UwUBot (Discord Bot)
+User friendly
+Used By Awesomebean_BOT with BeanBotCore
