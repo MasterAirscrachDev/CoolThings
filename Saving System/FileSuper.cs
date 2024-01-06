@@ -1,4 +1,4 @@
-﻿///FileSuperSystem V1.9
+﻿///FileSuperSystem V2.0
 using System;
 using System.IO;
 using System.Collections.Generic;
@@ -65,6 +65,7 @@ public class FileSuper
     public FileSuper(string project, string studio, bool debug = false, string[] splitSettings = null)
     {
         this.debug = debug;
+        this.encryptKey = null;
         if(splitSettings != null){ this.splitSettings = splitSettings;}
         else{ this.splitSettings = new string[] { "\n", "\r\n" };}
         fullpath = $"{Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)}\\{studio}\\{project}\\";
@@ -170,9 +171,9 @@ public class FileSuper
         string[] line; string name;
         for (int i = 0; i < lines.Length; i++) {
             try {
-                line = lines[i].Split('='); name = line[0][5..];
+                line = lines[i].Split('='); name = line[0].Substring(5);
                 if (lines[i].StartsWith("dasr.")) {
-                    string value = line[1][1..^1];
+                    string value = line[1].Substring(1, line[1].Length - 2);
                     save.SetString(name, value);
                 }
                 else if (lines[i].StartsWith("dain.")) {
