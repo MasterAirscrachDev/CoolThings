@@ -1,4 +1,5 @@
-﻿///FileSuperSystem V2.0
+///FileSuperSystem V2.2
+
 using System;
 using System.IO;
 using System.Collections.Generic;
@@ -239,6 +240,30 @@ public class FileSuper
         Log(path + folder);
         if (!Directory.Exists(path + folder)) return null;
         return Directory.GetFiles(path + folder);
+    }
+    ///<summary>Delete a file</summary>
+    public bool DeleteFile(string file, bool forcePath = false){
+        string path = "";
+        if (!forcePath) path = fullpath;
+        if (file.Contains("\\")) {
+            path += file.Substring(0, file.LastIndexOf("\\") + 1);
+            file = file.Substring(file.LastIndexOf("\\") + 1);
+        }
+        if (!File.Exists(path + file)) return false;
+        File.Delete(path + file);
+        return true;
+    }
+    ///<summary>Delete a folder and all its contents</summary>
+    public bool DeleteFolder(string folder, bool forcePath = false){
+        string path = "";
+        if (!forcePath) path = fullpath;
+        if (folder.Contains("\\")) {
+            path += folder.Substring(0, folder.LastIndexOf("\\") + 1);
+            folder = folder.Substring(folder.LastIndexOf("\\") + 1);
+        }
+        if (!Directory.Exists(path + folder)) return false;
+        Directory.Delete(path + folder, true);
+        return true;
     }
     ///<summary>Framework File reader for compatibility</summary>
     string FrameworkReadAllText(string filePath){
