@@ -1,4 +1,4 @@
-///FileSuperSystem V2.2
+///FileSuperSystem V2.3
 
 using System;
 using System.IO;
@@ -70,6 +70,10 @@ public class FileSuper
         if(splitSettings != null){ this.splitSettings = splitSettings;}
         else{ this.splitSettings = new string[] { "\n", "\r\n" };}
         fullpath = $"{Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)}\\{studio}\\{project}\\";
+        //use the persistent data path for android
+        #if UNITY_ANDROID
+            fullpath = $"{UnityEngine.Application.persistentDataPath}\\";
+        #endif
     }
     ///<summary>Set the encryption key, null = no encryption</summary>
     public void SetEncryption(string key = null) { encryptKey = key; }
@@ -290,6 +294,8 @@ public class FileSuper
     async Task<string> GetStringFromFileNETAgnostic(string file){
         string content = "";
         #if NETCOREAPP
+            content = await File.ReadAllTextAsync(file);
+        #elif UNITY_ANDROID
             content = await File.ReadAllTextAsync(file);
         #else
             content = FrameworkReadAllText(file);
