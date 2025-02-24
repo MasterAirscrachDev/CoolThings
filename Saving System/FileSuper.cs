@@ -1,57 +1,93 @@
-///FileSuperSystem V2.3
+///FileSuperSystem V2.4
 
 using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Linq;
+using BinaryFormatter = System.Runtime.Serialization.Formatters.Binary.BinaryFormatter;
 /// <summary>
 /// This is the Save class, it contains all the data that will be saved
 /// </summary>
 public class Save
 {
-    public List<int> Ints = new List<int>();
-    public List<bool> Bools = new List<bool>();
-    public List<float> Floats = new List<float>();
-    public List<string> Strings = new List<string>(), StringNames = new List<string>(), IntNames = new List<string>(), BoolNames = new List<string>(), FloatNames = new List<string>();
-    ///<summary>Set an int using the name</summary>
-    public void SetInt(string name, int value) {
-        if (IntNames.Contains(name)) Ints[IntNames.IndexOf(name)] = value;
-        else { IntNames.Add(name); Ints.Add(value); }
+    bool isPlain;
+    public Dictionary<string, object> data;
+    public Save(){ //default constructor
+        this.data = new Dictionary<string, object>();
+        this.isPlain = true;
     }
-    ///<summary>Set a bool using the name</summary>
-    public void SetBool(string name, bool value) {
-        if (BoolNames.Contains(name)) Bools[BoolNames.IndexOf(name)] = value;
-        else { BoolNames.Add(name); Bools.Add(value); }
+    public Save(Dictionary<string, object> data){ //internal constructor
+        this.data = new Dictionary<string, object>();
+        this.isPlain = true;
+        foreach(KeyValuePair<string, object> pair in data){
+            SetVar(pair.Key, pair.Value);
+        }
     }
-    ///<summary>Set a float using the name</summary>
-    public void SetFloat(string name, float value) {
-        if (FloatNames.Contains(name)) Floats[FloatNames.IndexOf(name)] = value;
-        else { FloatNames.Add(name); Floats.Add(value); }
+    public bool isPlainData(){ return isPlain; } //check if the data is plain(can be saved as plain text)
+    public Dictionary<string, object> GetData(){ return data; } //get the data dictionary
+    /// <summary>
+    /// Set a variable in the save, if the variable already exists it will be overwritten
+    /// </summary>
+    /// <param name="name"></param>
+    /// <param name="value"></param>
+    /// <exception cref="ArgumentException"></exception>
+    public void SetVar(string name, object value){
+        //check if the object is serializable
+        if (!value.GetType().IsSerializable)
+        {
+            throw new ArgumentException($"Type {value.GetType().Name} is not serializable");
+        }
+        //if value is not string, int, float or bool, set isPlain to false
+        if (value.GetType() != typeof(string) && value.GetType() != typeof(int) && value.GetType() != typeof(float) && value.GetType() != typeof(bool))
+        { isPlain = false; }
+
+        if(data.ContainsKey(name)){ data[name] = value; }
+        else{ data.Add(name, value); }
     }
-    ///<summary>Set a string using the name</summary>
-    public void SetString(string name, string value) {
-        if (StringNames.Contains(name)) Strings[StringNames.IndexOf(name)] = value;
-        else { StringNames.Add(name); Strings.Add(value); }
+    /// <summary>
+    /// Get a variable from the save, if it doesn't exist it will be created with the default value
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="name"></param>
+    /// <param name="defaultValue"></param>
+    /// <returns></returns>
+    public T GetVar<T>(string name, T defaultValue){
+        if(data.ContainsKey(name)){ return (T)data[name]; }
+        else{ SetVar(name, defaultValue); return defaultValue; }
     }
-    ///<summary>Get an int using the name, if its not found return null</summary>
-    public int? GetInt(string name) {
-        if (IntNames.Contains(name)) return Ints[IntNames.IndexOf(name)];
-        else return null;
+    /// <summary>
+    /// Try to get a variable from the save, if it doesn't exist it will return false
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="name"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    public bool TryGetVar<T>(string name, out T value){
+        if(data.ContainsKey(name)){ value = (T)data[name]; return true; }
+        else{ value = default; return false; }
     }
-    ///<summary>Get a bool using the name, if its not found return null</summary>
-    public bool? GetBool(string name) {
-        if (BoolNames.Contains(name)) return Bools[BoolNames.IndexOf(name)];
-        else return null;
+    /// <summary>
+    /// Get all the keys in the save
+    /// </summary>
+    /// <returns></returns>
+    public string[] GetKeys(){
+        return data.Keys.ToArray();
     }
-    ///<summary>Get a float using the name, if its not found return null</summary>
-    public float? GetFloat(string name) {
-        if (FloatNames.Contains(name)) return Floats[FloatNames.IndexOf(name)];
-        else return null;
+    /// <summary>
+    /// Check if the save contains a key
+    /// </summary>
+    /// <param name="key"></param>
+    /// <returns></returns>
+    public bool ContainsKey(string key){
+        return data.ContainsKey(key);
     }
-    ///<summary>Get a string using the name, if its not found return null</summary>
-    public string GetString(string name) {
-        if (StringNames.Contains(name)) return Strings[StringNames.IndexOf(name)];
-        else return null;
+    /// <summary>
+    /// Remove a key from the save
+    /// </summary>
+    /// <param name="key"></param>
+    public void RemoveKey(string key){
+        if(data.ContainsKey(key)){ data.Remove(key); }
     }
 }
 /// <summary>
@@ -62,7 +98,8 @@ public class FileSuper
     public bool working, debug;
     string encryptKey, fullpath;
     string[] splitSettings;
-    ///<summary>Create a new FileSuper object </summary>
+    BinaryFormatter bf = new BinaryFormatter();
+    ///<summary>Create a new FileSuper object</summary>
     public FileSuper(string project, string studio, bool debug = false, string[] splitSettings = null)
     {
         this.debug = debug;
@@ -78,16 +115,14 @@ public class FileSuper
     ///<summary>Set the encryption key, null = no encryption</summary>
     public void SetEncryption(string key = null) { encryptKey = key; }
     ///<summary>Encrypt or decrypt a string using a key</summary>
-    public string EncDecProcess(string dataIn, string key)
-    {
+    public string EncDecProcess(string dataIn, string key) {
         string xorstring = "", input = dataIn, enckey = key;
         for (int i = 0; i < input.Length; i++)
         { xorstring += (char)(input[i] ^ enckey[i % enckey.Length]); }
         return xorstring;
     }
     ///<summary>Save a file, if the file already exists it will be overwritten</summary>
-    public async Task<bool> SaveFile(string file, Save save)
-    {
+    public async Task<bool> SaveFile(string file, Save save) {
         working = true;
         //the file may be prefixed with a path, so we need to check for that
         string path = fullpath;
@@ -99,46 +134,41 @@ public class FileSuper
         //check if the path exists, if not create it
         if (!Directory.Exists(path)) Directory.CreateDirectory(path);
         //convert the save to serialised data
-        string data = GetSaveAsRaw(save);
+        bool plain = save.isPlainData();
+        string data = plain ? GetSaveAsString(save) : Convert.ToBase64String(GetSaveAsBytes(save));
+        //encrypt the data if needed
+        if (encryptKey != null) { data = EncDecProcess(data, encryptKey); }
         //write the data to the file asynchronously
-        using (StreamWriter outputFile = new StreamWriter(path + file))
-        { await outputFile.WriteAsync(data); }
+        using (StreamWriter outputFile = new StreamWriter(path + file)) { 
+            await outputFile.WriteAsync(data);
+        }
         if (debug) { Log($"Saved {file} to {path}"); }
         working = false;
         return true;
     }
     ///<summary>convert a save to a rawDataString</summary>
-    public string GetSaveAsRaw(Save save)
-    {
-        //convert the save to serialised data
-        string data = "";
-        if (save.StringNames.Count > 0) {
-            //line should look like this: dasr.{stringname}="{stringvalue}"
-            for (int i = 0; i < save.StringNames.Count; i++)
-            { data += $"dasr.{save.StringNames[i]}=\"{save.Strings[i]}\"\n"; }
-        }
-        if (save.IntNames.Count > 0) {
-            //line should look like this: dain.{intname}={intvalue}
-            for (int i = 0; i < save.IntNames.Count; i++)
-            { data += $"dain.{save.IntNames[i]}={save.Ints[i]}\n"; }
-        }
-        if (save.BoolNames.Count > 0) {
-            //line should look like this: dabo.{boolname}={boolvalue}
-            for (int i = 0; i < save.BoolNames.Count; i++)
-            { data += $"dabo.{save.BoolNames[i]}={save.Bools[i]}\n"; }
-        }
-        if (save.FloatNames.Count > 0) {
-            //line should look like this: dafl.{floatname}={floatvalue}
-            for (int i = 0; i < save.FloatNames.Count; i++)
-            { data += $"dafl.{save.FloatNames[i]}={save.Floats[i]}\n"; }
-        }
-        //encrypt the data if needed
-        if (encryptKey != null) { data = EncDecProcess(data, encryptKey); }
+    public byte[] GetSaveAsBytes(Save save) { //This is used for complex data, classes ect
+        byte[] data = ObjectToByteArray(save.GetData());
         return data;
     }
+    public string GetSaveAsString(Save save) { //this is used for simple types, can be user edited
+        string strdata = "";
+        Dictionary<string, object> saveData = save.GetData();
+        for(int i = 0; i < save.data.Count; i++){
+            KeyValuePair<string, object> pair = saveData.ElementAt(i);
+            var value = pair.Value;
+            string name = pair.Key;
+            if (value.GetType() == typeof(string)) { strdata += $"s:{name}:{value}\n"; }
+            else if (value.GetType() == typeof(int)) { strdata += $"i:{name}:{value}\n"; }
+            else if (value.GetType() == typeof(float)) { strdata += $"f:{name}:{value}\n"; }
+            else if (value.GetType() == typeof(bool)) { strdata += $"b:{name}:{value}\n"; }
+        }
+        strdata = strdata.Substring(0, strdata.Length - 1); //remove the last newline
+        if(debug){Log($"saving: {strdata}");}
+        return strdata;
+    }
     ///<summary>Load a file and return the contents as a save</summary>
-    public async Task<Save> LoadFile(string file)
-    {
+    public async Task<Save> LoadFile(string file) {
         working = true;
         //the file may be prefixed with a path, so we need to check for that
         string path = fullpath;
@@ -154,56 +184,48 @@ public class FileSuper
         }
         if (debug) { Log($"Loading {file} from {path}"); }
         //read the file asynchronously
-        string data = await GetStringFromFileNETAgnostic(path + file);
-        if (debug) { Log($"Content: {data}"); }
+        string data = await GetDataFromFileNETAgnostic(path + file);
         //convert the data to a save
-        Save save = LoadSaveFromRaw(data);
+        Save save = StringToSave(data);
         working = false;
         if (debug) { Log($"Loaded {file}"); }
         return save;
     }
     ///<summary>convert a rawDataString to a save</summary>
-    public Save LoadSaveFromRaw(string content) {
-        if (debug) { Log($"Content: {content}"); }
+    public Save StringToSave(string content) {
         //decrypt the data if needed
         if (encryptKey != null) { content = EncDecProcess(content, encryptKey); }
         //convert the data to a save
-        //the data is split into sections, so we need to split it up
-        //check the content of the first line
-        string[] lines = content.Split(splitSettings, StringSplitOptions.RemoveEmptyEntries);
-        if (debug) { Log($"Parsing[{lines.Length}]"); }
-        Save save = new Save();
-        string[] line; string name;
-        for (int i = 0; i < lines.Length; i++) {
-            try {
-                line = lines[i].Split('='); name = line[0].Substring(5);
-                if (lines[i].StartsWith("dasr.")) {
-                    string value = line[1].Substring(1, line[1].Length - 2);
-                    save.SetString(name, value);
+        Save save;
+        try{
+            byte[] data = Convert.FromBase64String(content);
+            Dictionary<string, object> saveData = ByteArrayToObject(data) as Dictionary<string, object>;
+            save = new Save(saveData);
+        }catch{
+            try{
+                save = new Save();
+                string[] lines = content.Split(splitSettings, StringSplitOptions.RemoveEmptyEntries);
+                foreach (string line in lines) {
+                    string[] parts = line.Split(':');
+                    if (parts.Length < 3) { continue; }
+                    string type = parts[0], name = parts[1];
+                    //rejoin any split values after this
+                    string value = string.Join(":", parts, 2, parts.Length - 2);
+                    if (type == "s") { save.SetVar(name, value); }
+                    else if (type == "i") { save.SetVar(name, int.Parse(value)); }
+                    else if (type == "f") { save.SetVar(name, float.Parse(value)); }
+                    else if (type == "b") { save.SetVar(name, bool.Parse(value)); }
                 }
-                else if (lines[i].StartsWith("dain.")) {
-                    int value = int.Parse(line[1]);
-                    save.SetInt(name, value);
-                }
-                else if (lines[i].StartsWith("dabo.")) {
-                    bool value = bool.Parse(line[1]);
-                    save.SetBool(name, value);
-                }
-                else if (lines[i].StartsWith("dafl.")) {
-                    float value = float.Parse(line[1]);
-                    save.SetFloat(name, value);
-                }
+            }catch{
+                save = null;
+                Log("Error parsing save data");
             }
-            catch {
-                if (debug) { Log($"ParseError on line: {i}"); }
-            }
+            
         }
-        if (debug) { Log("Content Parsed"); }
         return save;
     }
     ///<summary>Save a text file, if the file already exists it will be overwritten</summary>
-    public async Task SaveText(string file, string text, bool forcePath = false)
-    {
+    public async Task SaveText(string file, string text, bool forcePath = false) {
         string path = "";
         if (!forcePath) path = fullpath;
         if (file.Contains("\\"))
@@ -218,8 +240,7 @@ public class FileSuper
         { await outputFile.WriteAsync(text); }
     }
     ///<summary>Load a text file and return the contents as a string array</summary>
-    public async Task<string[]> LoadText(string file, bool forcePath = false, bool clearBlankLines = true)
-    {
+    public async Task<string[]> LoadText(string file, bool forcePath = false, bool clearBlankLines = true) {
         string path = "";
         if (!forcePath) path = fullpath;
         if (file.Contains("\\")) {
@@ -227,14 +248,14 @@ public class FileSuper
             file = file.Substring(file.LastIndexOf("\\") + 1);
         }
         if (!File.Exists(path + file)) return null;
-        string content = await GetStringFromFileNETAgnostic(path + file);
+        string content = await GetDataFromFileNETAgnostic(path + file);
         //encrypt the data if needed
         if (encryptKey != null) { content = EncDecProcess(content, encryptKey); }
         StringSplitOptions options = clearBlankLines ? StringSplitOptions.RemoveEmptyEntries : StringSplitOptions.None;
         return content.Split(splitSettings, options);
     }
     ///<summary>Get a list of all the files in a folder</summary>
-    public string[] GetFilesInFolder(string folder, bool forcePath = false){
+    public string[] GetFilesInFolder(string folder, bool forcePath = false) {
         string path = "";
         if (!forcePath) path = fullpath;
         if (folder.Contains("\\")) {
@@ -246,7 +267,7 @@ public class FileSuper
         return Directory.GetFiles(path + folder);
     }
     ///<summary>Delete a file</summary>
-    public bool DeleteFile(string file, bool forcePath = false){
+    public bool DeleteFile(string file, bool forcePath = false) {
         string path = "";
         if (!forcePath) path = fullpath;
         if (file.Contains("\\")) {
@@ -258,7 +279,7 @@ public class FileSuper
         return true;
     }
     ///<summary>Delete a folder and all its contents</summary>
-    public bool DeleteFolder(string folder, bool forcePath = false){
+    public bool DeleteFolder(string folder, bool forcePath = false) {
         string path = "";
         if (!forcePath) path = fullpath;
         if (folder.Contains("\\")) {
@@ -270,12 +291,12 @@ public class FileSuper
         return true;
     }
     ///<summary>Framework File reader for compatibility</summary>
-    string FrameworkReadAllText(string filePath){
-        string fileContents = string.Empty;
+    string FrameworkReadFile(string filePath) {
+        string fileContents = "";
         try{
             // Open the file using a stream reader.
             using (StreamReader streamReader = new StreamReader(filePath)){
-                fileContents = streamReader.ReadToEnd(); // Read the contents of the file into a string variable.
+                fileContents = streamReader.ReadToEnd(); // Read the contents of the file into a byte array.
             }
         }
         catch (Exception ex) {
@@ -284,21 +305,46 @@ public class FileSuper
         }
         return fileContents;
     }
+    byte[] ObjectToByteArray(object b) { //convert an object to a byte array
+        try{
+            if(b == null){ return null; }
+            using (MemoryStream ms = new MemoryStream())
+            { bf.Serialize(ms, b); return ms.ToArray(); }
+        }
+        catch(Exception e){
+            Log($"Error converting object to byte array: {e.Message}");
+            return null;
+        }
+    }
+    object ByteArrayToObject(byte[] arrBytes) { //convert a byte array to an object
+        try{
+            using (MemoryStream memStream = new MemoryStream()) {
+                memStream.Write(arrBytes, 0, arrBytes.Length);
+                memStream.Seek(0, SeekOrigin.Begin);
+                return bf.Deserialize(memStream);
+            }
+        }
+        catch(Exception e){
+            //this log is commented because we are intentionally trying to parse the data as a string if it fails
+            //Log($"Error converting byte array to object: {e.Message}");
+            return null;
+        }
+    }
     void Log(string message){
         #if UNITY_EDITOR
-            UnityEngine.Debug.Log(message);
+                UnityEngine.Debug.Log(message);
         #else
             Console.WriteLine(message);
         #endif
     }
-    async Task<string> GetStringFromFileNETAgnostic(string file){
-        string content = "";
+    async Task<string> GetDataFromFileNETAgnostic(string file){
+        string content;
         #if NETCOREAPP
             content = await File.ReadAllTextAsync(file);
         #elif UNITY_ANDROID
             content = await File.ReadAllTextAsync(file);
         #else
-            content = FrameworkReadAllText(file);
+            content = FrameworkReadFile(file);
         #endif
         return content;
     }
