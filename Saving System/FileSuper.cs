@@ -1,4 +1,4 @@
-///FileSuperSystem V2.4
+///FileSuperSystem V2.5
 
 using System;
 using System.IO;
@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
 using BinaryFormatter = System.Runtime.Serialization.Formatters.Binary.BinaryFormatter;
+using System.Diagnostics;
 /// <summary>
 /// This is the Save class, it contains all the data that will be saved
 /// </summary>
@@ -33,13 +34,15 @@ public class Save
     /// <param name="value"></param>
     /// <exception cref="ArgumentException"></exception>
     public void SetVar(string name, object value){
+        if(value == null){ return; }
         //check if the object is serializable
         if (!value.GetType().IsSerializable)
         {
             throw new ArgumentException($"Type {value.GetType().Name} is not serializable");
         }
         //if value is not string, int, float or bool, set isPlain to false
-        if (value.GetType() != typeof(string) && value.GetType() != typeof(int) && value.GetType() != typeof(float) && value.GetType() != typeof(bool))
+        Type t = value.GetType();
+        if (t != typeof(string) && t != typeof(int) && t != typeof(float) && t != typeof(bool))
         { isPlain = false; }
 
         if(data.ContainsKey(name)){ data[name] = value; }
@@ -122,10 +125,11 @@ public class FileSuper
         return xorstring;
     }
     ///<summary>Save a file, if the file already exists it will be overwritten</summary>
-    public async Task<bool> SaveFile(string file, Save save) {
+    public async Task<bool> SaveFile(string file, Save save, bool forcePath = false) {
         working = true;
         //the file may be prefixed with a path, so we need to check for that
-        string path = fullpath;
+        string path = "";
+        if (!forcePath) path = fullpath;
         if (file.Contains("\\")){
             path += file.Substring(0, file.LastIndexOf("\\") + 1);
             file = file.Substring(file.LastIndexOf("\\") + 1);
@@ -140,7 +144,7 @@ public class FileSuper
         if (encryptKey != null) { data = EncDecProcess(data, encryptKey); }
         //write the data to the file asynchronously
         using (StreamWriter outputFile = new StreamWriter(path + file)) { 
-            await outputFile.WriteAsync(data);
+            await outputFile.WriteAsync(data);  
         }
         if (debug) { Log($"Saved {file} to {path}"); }
         working = false;
@@ -168,10 +172,11 @@ public class FileSuper
         return strdata;
     }
     ///<summary>Load a file and return the contents as a save</summary>
-    public async Task<Save> LoadFile(string file) {
+    public async Task<Save> LoadFile(string file, bool forcePath = false) {
         working = true;
         //the file may be prefixed with a path, so we need to check for that
-        string path = fullpath;
+        string path = "";
+        if (!forcePath) path = fullpath;
         if (file.Contains("\\")) {
             path += file.Substring(0, file.LastIndexOf("\\") + 1);
             file = file.Substring(file.LastIndexOf("\\") + 1);
@@ -335,6 +340,7 @@ public class FileSuper
                 UnityEngine.Debug.Log(message);
         #else
             Console.WriteLine(message);
+            Debug.WriteLine(message);
         #endif
     }
     async Task<string> GetDataFromFileNETAgnostic(string file){
